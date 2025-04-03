@@ -7,7 +7,7 @@ const Navbar = ({ user, onLogout }) => {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="text-xl font-bold text-primary-600">
+              <Link to="/" className="text-xl font-bold text-blue-600">
                 Photo Gallery
               </Link>
             </div>
@@ -17,24 +17,24 @@ const Navbar = ({ user, onLogout }) => {
               <>
                 <Link
                   to="/home"
-                  className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                  className="border-transparent text-gray-900 hover:text-blue-600 hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                 >
                   Home
                 </Link>
                 <button
                   onClick={onLogout}
-                  className="text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 text-sm font-medium"
+                  className="text-gray-900 hover:text-blue-600 inline-flex items-center px-1 pt-1 text-sm font-medium"
                 >
                   Sign out
                 </button>
-                <span className="text-gray-500 text-sm font-medium">
+                <span className="text-gray-900 text-sm font-medium">
                   Welcome, {user.name}
                 </span>
               </>
             ) : (
               <Link
                 to="/login"
-                className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                className="border-transparent text-gray-900 hover:text-blue-600 hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
               >
                 Sign in
               </Link>

@@ -8,7 +8,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Simulate authentication check on app load
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -17,11 +16,12 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = (userData) => {
+  const login = (userData, provider) => {
     const userToStore = {
       id: userData.id,
       name: userData.name,
       email: userData.email,
+      provider: provider || 'email'
     };
     setUser(userToStore);
     localStorage.setItem('user', JSON.stringify(userToStore));
