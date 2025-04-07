@@ -38,18 +38,18 @@ const LoginPage = () => {
 
   const handleOAuthLogin = (provider) => {
     setOauthLoading(provider);
-    // In a real app, this would redirect to the provider's auth page
-    // For demo purposes, we'll simulate a successful login after a delay
-    setTimeout(() => {
-      const demoUser = {
-        id: Math.floor(Math.random() * 1000),
-        name: `Demo ${provider} User`,
-        email: `demo@${provider.toLowerCase()}.com`
-      };
-      login(demoUser, provider);
-      toast.success(`Logged in with ${provider}`);
-      setOauthLoading(null);
-    }, 1500);
+    // redirect to the provider's auth page - implementation for google and facebook
+
+    // setTimeout(() => {
+    //   const demoUser = {
+    //     id: Math.floor(Math.random() * 1000),
+    //     name: `Demo ${provider} User`,
+    //     email: `demo@${provider.toLowerCase()}.com`
+    //   };
+    //   login(demoUser, provider);
+    //   toast.success(`Logged in with ${provider}`);
+    //   setOauthLoading(null);
+    // }, 1500);
   };
 
   return (
