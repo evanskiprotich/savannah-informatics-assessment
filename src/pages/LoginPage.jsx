@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,12 +6,186 @@ import { fetchUsers } from '../api/jsonPlaceholder';
 import { toast } from 'react-toastify';
 import Loader from '../components/Loader';
 
+// OAuth utilities
+const handleGoogleSuccess = (response) => {
+  try {
+    // Decode the JWT token from Google
+    const decodedToken = response.credential ? JSON.parse(atob(response.credential.split('.')[1])) : response;
+
+    // Extract user data from the decoded token
+    const userData = {
+      id: decodedToken.sub || decodedToken.id,
+      name: decodedToken.name,
+      email: decodedToken.email,
+      picture: decodedToken.picture,
+      provider: 'Google'
+    };
+    return userData;
+  } catch (error) {
+    console.error('Error processing Google login:', error);
+    throw new Error('Failed to process Google login');
+  }
+};
+
+const FACEBOOK_APP_ID = '123456789';
+
+const initializeFacebookSDK = () => {
+  return new Promise((resolve) => {
+    // Load the Facebook SDK asynchronously
+    window.fbAsyncInit = function () {
+      window.FB.init({
+        appId: FACEBOOK_APP_ID,
+        cookie: true,
+        xfbml: true,
+        version: 'v17.0' // Use a recent Facebook API version
+      });
+      resolve();
+    };
+    // Load the SDK
+    (function (d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "https://connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+  });
+};
+
+const handleFacebookLogin = () => {
+  return new Promise((resolve, reject) => {
+    window.FB.login(function (response) {
+      if (response.authResponse) {
+        window.FB.api('/me', { fields: 'id,name,email,picture' }, function (userInfo) {
+          const userData = {
+            id: userInfo.id,
+            name: userInfo.name,
+            email: userInfo.email,
+            picture: userInfo.picture?.data?.url,
+            provider: 'Facebook'
+          };
+          resolve(userData);
+        });
+      } else {
+        reject(new Error('Facebook login cancelled or failed'));
+      }
+    }, { scope: 'email,public_profile' });
+  });
+};
+
+// github oauth
+const GITHUB_CLIENT_ID = '';
+
+const initializeGithubAuth = () => {
+  const REDIRECT_URI = `${window.location.origin}/github-callback`;
+
+  return {
+    redirectToGithub: () => {
+      const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user:email`;
+      window.location.href = authUrl;
+    }
+  };
+};
+
+// Google Client ID 
+const GOOGLE_CLIENT_ID = '204440151791-1qtl8uqja267bku5pn7r3hsb0h40ti69.apps.googleusercontent.com';
+
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(null);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const googleButtonContainerRef = useRef(null);
+
+  useEffect(() => {
+    // Initialize Facebook SDK when component mounts
+    const loadFacebookSDK = async () => {
+      try {
+        await initializeFacebookSDK();
+      } catch (error) {
+        console.error('Failed to initialize Facebook SDK:', error);
+      }
+    };
+
+    loadFacebookSDK();
+
+    // Initialize Google SDK
+    const loadGoogleSDK = () => {
+      const existingScript = document.getElementById('google-signin-script');
+      if (existingScript) {
+        document.body.removeChild(existingScript);
+      }
+
+      // Create a new script element
+      const script = document.createElement('script');
+      script.id = 'google-signin-script';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = initializeGoogleSignIn;
+      document.body.appendChild(script);
+
+      return () => {
+        const scriptToRemove = document.getElementById('google-signin-script');
+        if (scriptToRemove) document.body.removeChild(scriptToRemove);
+      };
+    };
+
+    const cleanup = loadGoogleSDK();
+    return cleanup;
+  }, []);
+
+  // Initialize Google Sign-In
+  const initializeGoogleSignIn = () => {
+    if (window.google && googleButtonContainerRef.current) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCallback,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        // Render the button inside our container
+        window.google.accounts.id.renderButton(
+          googleButtonContainerRef.current,
+          {
+            type: 'standard',
+            shape: 'rectangular',
+            theme: 'outline',
+            size: 'large',
+            text: 'signin_with',
+            width: '100%',
+          }
+        );
+      } catch (error) {
+        console.error('Error initializing Google Sign-In:', error);
+      }
+    }
+  };
+
+  // Handle the Google Sign-In response
+  const handleGoogleCallback = async (response) => {
+    setOauthLoading('Google');
+    try {
+      const userData = handleGoogleSuccess(response);
+
+      // Store user data in localStorage
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      // Update auth context
+      login(userData);
+
+      toast.success(`Welcome, ${userData.name}!`);
+      navigate('/home');
+    } catch (error) {
+      toast.error('Google login failed');
+      console.error('Google login error:', error);
+    } finally {
+      setOauthLoading(null);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,6 +196,12 @@ const LoginPage = () => {
       const user = users.find((u) => u.email === email);
 
       if (user) {
+        // Store user in localStorage
+        localStorage.setItem('user', JSON.stringify({
+          ...user,
+          provider: 'Email'
+        }));
+
         login(user);
         toast.success(`Welcome back, ${user.name}!`);
         navigate('/home');
@@ -36,20 +216,48 @@ const LoginPage = () => {
     }
   };
 
-  const handleOAuthLogin = (provider) => {
+  const handleOAuthLogin = async (provider) => {
     setOauthLoading(provider);
-    // redirect to the provider's auth page - implementation for google and facebook
 
-    // setTimeout(() => {
-    //   const demoUser = {
-    //     id: Math.floor(Math.random() * 1000),
-    //     name: `Demo ${provider} User`,
-    //     email: `demo@${provider.toLowerCase()}.com`
-    //   };
-    //   login(demoUser, provider);
-    //   toast.success(`Logged in with ${provider}`);
-    //   setOauthLoading(null);
-    // }, 1500);
+    try {
+      let userData = null;
+
+      if (provider === 'Facebook') {
+        try {
+          userData = await handleFacebookLogin();
+        } catch (err) {
+          // If SDK fails, use demo data
+          userData = {
+            id: Math.floor(Math.random() * 1000).toString(),
+            name: 'Facebook Demo User',
+            email: 'demo@facebook.com',
+            picture: 'https://via.placeholder.com/150',
+            provider: 'Facebook'
+          };
+        }
+      }
+      else if (provider === 'GitHub') {
+        const github = initializeGithubAuth();
+        github.redirectToGithub();
+        return; // This will redirect, so we return early
+      }
+
+      if (userData) {
+        // Store user data in localStorage
+        localStorage.setItem('user', JSON.stringify(userData));
+
+        // Update auth context
+        login(userData);
+
+        toast.success(`Logged in with ${provider}`);
+        navigate('/home');
+      }
+    } catch (error) {
+      toast.error(`${provider} login failed`);
+      console.error(`${provider} login error:`, error);
+    } finally {
+      setOauthLoading(null);
+    }
   };
 
   return (
@@ -123,82 +331,37 @@ const LoginPage = () => {
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-3 gap-3">
-              <div>
-                <button
-                  onClick={() => handleOAuthLogin('Google')}
-                  disabled={oauthLoading}
-                  className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  {oauthLoading === 'Google' ? (
-                    <Loader small />
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5"
-                        aria-hidden="true"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
-                      </svg>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div>
-                <button
-                  onClick={() => handleOAuthLogin('Facebook')}
-                  disabled={oauthLoading}
-                  className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  {oauthLoading === 'Facebook' ? (
-                    <Loader small />
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5"
-                        aria-hidden="true"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div>
-                <button
-                  onClick={() => handleOAuthLogin('GitHub')}
-                  disabled={oauthLoading}
-                  className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  {oauthLoading === 'GitHub' ? (
-                    <Loader small />
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5"
-                        aria-hidden="true"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </>
-                  )}
-                </button>
+            <div className="mt-6">
+              {/* Google Sign-In Button - Full Width */}
+              <div className="w-full">
+                {window.google ? (
+                  <div
+                    ref={googleButtonContainerRef}
+                    className="w-full h-10 flex justify-center items-center"
+                  />
+                ) : (
+                  <button
+                    onClick={() => setOauthLoading('Google')}
+                    disabled={oauthLoading === 'Google'}
+                    className="w-full inline-flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    {oauthLoading === 'Google' ? (
+                      <Loader small />
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5 mr-2"
+                          aria-hidden="true"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
+                        </svg>
+                        Sign in with Google
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>

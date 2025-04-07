@@ -35,9 +35,6 @@ const LandingPage = () => {
                 >
                   Sign In
                 </Link>
-                <p className="text-sm text-gray-600">
-                  Demo credentials available on login page
-                </p>
               </div>
             )}
           </div>
