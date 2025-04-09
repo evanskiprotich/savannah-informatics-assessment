@@ -1,3 +1,6 @@
+import React from 'react';
+import PropTypes from 'prop-types';
+
 const PhotoCard = ({ photo, onClick }) => {
   return (
     <div
@@ -16,6 +19,14 @@ const PhotoCard = ({ photo, onClick }) => {
       </div>
     </div>
   );
+};
+
+PhotoCard.propTypes = {
+  photo: PropTypes.shape({
+    thumbnailUrl: PropTypes.string.isRequired,
+    title: PropTypes.string.isRequired
+  }).isRequired,
+  onClick: PropTypes.func.isRequired
 };
 
 export default PhotoCard;

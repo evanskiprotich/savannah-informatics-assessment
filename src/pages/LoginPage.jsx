@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import React from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -98,6 +99,57 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const googleButtonContainerRef = useRef(null);
 
+  // Memoize the initializeGoogleSignIn function
+  const initializeGoogleSignIn = useCallback(() => {
+    if (window.google && googleButtonContainerRef.current) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCallback,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        // Render the button inside our container
+        window.google.accounts.id.renderButton(
+          googleButtonContainerRef.current,
+          {
+            type: 'standard',
+            shape: 'rectangular',
+            theme: 'outline',
+            size: 'large',
+            text: 'signin_with',
+            width: '100%',
+          }
+        );
+      } catch (error) {
+        console.error('Error initializing Google Sign-In:', error);
+      }
+    }
+  }, [handleGoogleCallback]);
+
+  // Handle the Google Sign-In response
+  const handleGoogleCallback = useCallback(async (response) => {
+    setOauthLoading('Google');
+    try {
+      const userData = handleGoogleSuccess(response);
+
+      // Store user data in localStorage
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      // Update auth context
+      login(userData);
+
+      toast.success(`Welcome, ${userData.name}!`);
+      navigate('/home');
+    } catch (error) {
+      toast.error('Google login failed');
+      console.error('Google login error:', error);
+    } finally {
+      setOauthLoading(null);
+    }
+  }, [login, navigate]);
+
   useEffect(() => {
     // Initialize Facebook SDK when component mounts
     const loadFacebookSDK = async () => {
@@ -134,58 +186,7 @@ const LoginPage = () => {
 
     const cleanup = loadGoogleSDK();
     return cleanup;
-  }, []);
-
-  // Initialize Google Sign-In
-  const initializeGoogleSignIn = () => {
-    if (window.google && googleButtonContainerRef.current) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleCallback,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-
-        // Render the button inside our container
-        window.google.accounts.id.renderButton(
-          googleButtonContainerRef.current,
-          {
-            type: 'standard',
-            shape: 'rectangular',
-            theme: 'outline',
-            size: 'large',
-            text: 'signin_with',
-            width: '100%',
-          }
-        );
-      } catch (error) {
-        console.error('Error initializing Google Sign-In:', error);
-      }
-    }
-  };
-
-  // Handle the Google Sign-In response
-  const handleGoogleCallback = async (response) => {
-    setOauthLoading('Google');
-    try {
-      const userData = handleGoogleSuccess(response);
-
-      // Store user data in localStorage
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      // Update auth context
-      login(userData);
-
-      toast.success(`Welcome, ${userData.name}!`);
-      navigate('/home');
-    } catch (error) {
-      toast.error('Google login failed');
-      console.error('Google login error:', error);
-    } finally {
-      setOauthLoading(null);
-    }
-  };
+  }, [initializeGoogleSignIn]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -216,7 +217,7 @@ const LoginPage = () => {
     }
   };
 
-  const handleOAuthLogin = async (provider) => {
+  const _handleOAuthLogin = async (provider) => {
     setOauthLoading(provider);
 
     try {

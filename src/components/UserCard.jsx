@@ -1,3 +1,6 @@
+import React from 'react';
+import PropTypes from 'prop-types';
+
 const UserCard = ({ user, albumCount, onClick }) => {
   return (
     <div
@@ -45,6 +48,16 @@ const UserCard = ({ user, albumCount, onClick }) => {
       </div>
     </div>
   );
+};
+
+UserCard.propTypes = {
+  user: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    username: PropTypes.string.isRequired,
+    email: PropTypes.string.isRequired
+  }).isRequired,
+  albumCount: PropTypes.number.isRequired,
+  onClick: PropTypes.func.isRequired
 };
 
 export default UserCard;

@@ -1,4 +1,6 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
+import PropTypes from 'prop-types';
 
 const Navbar = ({ user, onLogout }) => {
   return (
@@ -44,6 +46,13 @@ const Navbar = ({ user, onLogout }) => {
       </div>
     </nav>
   );
+};
+
+Navbar.propTypes = {
+  user: PropTypes.shape({
+    name: PropTypes.string
+  }),
+  onLogout: PropTypes.func.isRequired
 };
 
 export default Navbar;

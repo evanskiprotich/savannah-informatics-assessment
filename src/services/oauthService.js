@@ -1,13 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet-async';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { fetchUsers } from '../api/jsonPlaceholder';
-import { toast } from 'react-toastify';
-import Loader from '../components/Loader';
-
 // OAuth utilities
-const handleGoogleSuccess = (response) => {
+const _handleGoogleSuccess = (response) => {
   try {
     // Decode the JWT token from Google
     const decodedToken = response.credential ? JSON.parse(atob(response.credential.split('.')[1])) : response;
@@ -27,7 +19,7 @@ const handleGoogleSuccess = (response) => {
   }
 };
 
-const initializeFacebookSDK = () => {
+const _initializeFacebookSDK = () => {
   return new Promise((resolve) => {
     // Load the Facebook SDK asynchronously
     window.fbAsyncInit = function () {
@@ -50,7 +42,7 @@ const initializeFacebookSDK = () => {
   });
 };
 
-const handleFacebookLogin = () => {
+const _handleFacebookLogin = () => {
   return new Promise((resolve, reject) => {
     window.FB.login(function (response) {
       if (response.authResponse) {
@@ -71,7 +63,7 @@ const handleFacebookLogin = () => {
   });
 };
 
-const initializeGithubAuth = () => {
+const _initializeGithubAuth = () => {
   // GitHub OAuth client ID
   const GITHUB_CLIENT_ID = process.env.REACT_APP_GITHUB_CLIENT_ID || '';
   const REDIRECT_URI = `${window.location.origin}/github-callback`;

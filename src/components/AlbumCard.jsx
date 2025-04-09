@@ -1,3 +1,6 @@
+import React from 'react';
+import PropTypes from 'prop-types';
+
 const AlbumCard = ({ album, onClick }) => {
   return (
     <div
@@ -38,6 +41,14 @@ const AlbumCard = ({ album, onClick }) => {
       </div>
     </div>
   );
+};
+
+AlbumCard.propTypes = {
+  album: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    title: PropTypes.string.isRequired
+  }).isRequired,
+  onClick: PropTypes.func.isRequired
 };
 
 export default AlbumCard;

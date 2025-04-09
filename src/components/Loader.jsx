@@ -1,3 +1,6 @@
+import React from 'react';
+import PropTypes from 'prop-types';
+
 const Loader = ({ small = false }) => {
   return (
     <div className={`flex justify-center items-center ${small ? '' : 'min-h-screen'}`}>
@@ -7,6 +10,10 @@ const Loader = ({ small = false }) => {
       ></div>
     </div>
   );
+};
+
+Loader.propTypes = {
+  small: PropTypes.bool
 };
 
 export default Loader;
