@@ -14,16 +14,17 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "18" # Recommended to use Node 18
+          node-version: "18"
           cache: "npm"
       - run: npm ci
+      - run: npm run format
       - run: npm run lint
       - run: npm test
-      - run: npm run build # Test the build as part of CI
+      - run: npm run build
 
   deploy:
-    needs: test # Only deploy if tests pass
-    if: github.ref == 'refs/heads/master' # Only deploy from master
+    needs: test
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -42,3 +43,4 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           scope: ${{ secrets.VERCEL_ORG_ID }}
           build-env: NODE_ENV=production
+          working-directory: ./dist
